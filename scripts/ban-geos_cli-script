@@ -1,0 +1,30 @@
+# create geo-ip objects and group that you want to ban
+
+config firewall address
+    edit "cuba_geo"
+        set type geography
+        set country "CU"
+    next
+    edit "dprk_geo"
+        set type geography
+        set country "KP"
+    next
+    edit "iran_geo"
+        set type geography
+        set country "IR"
+    next
+    edit "israel_geo"
+        set type geography
+        set country "IL"
+    next
+    edit "vatican_geo"
+        set type geography
+        set country "VA"
+    next
+end
+
+config firewall addrgrp
+    edit "ban_geos"
+        set member "israel_geo" "iran_geo" "dprk_geo" "vatican_geo" "cuba_geo"
+    next
+end
