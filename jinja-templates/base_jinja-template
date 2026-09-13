@@ -1,0 +1,181 @@
+# global system settings
+config system global
+     set admintimeout {{adminTimeOut_var}}
+     set timezone {{timezone_var}}
+     set admin-sport {{adminSport_var}}
+     set gui-device-latitude {{lat_var}}
+     set gui-device-longitude {{long_var}}
+     set autorun-log-fsck enable
+     set cli-audit-log enable
+     set gui-app-detection-sdwan enable
+     set gui-certificates enable
+     set gui-fortigate-cloud-sandbox enable
+     set gui-wireless-opensecurity enable
+     set pre-login-banner enable
+end
+
+config system settings
+    set auxiliary-session enable
+    set gui-dns-database enable
+    set gui-multicast-policy enable
+    set gui-security-profile-group enable
+    set gui-local-in-policy enable
+    set gui-advanced-wireless-features enable
+    set sip-nat-trace disable
+    set default-voip-alg-mode kernel-helper-based
+end
+
+config system replacemsg admin "pre_admin-disclaimer-text"
+    set buffer "Unauthorized access prohibited.
+Violations will be prosecuted according to law."
+end
+
+# disable automatic updates because we're going to control updates with fmg
+config system autoupdate schedule
+    set status enable
+    set frequency automatic
+end
+
+# system DNS settings; don't use FortiGuard DNS servers!
+config system dns
+     set primary {{dnsPrimary_var}}
+     set secondary {{dnsSecondary_var}}
+     set domain {{localDomainZone_var}}
+     set protocol cleartext dot doh
+     set interface-select-method sdwan
+     set server-select-method failover
+end
+
+# ddns on wan1 and wan2 for public access even when isp is dhcp
+config system ddns
+    edit 1
+        set ddns-server FortiGuardDDNS
+        set ddns-domain "{{hostname_var}}-{{intWan1Name_var}}.fortiddns.com"
+        set use-public-ip enable
+        set monitor-interface "{{intWan1Name_var}}"
+    next
+    edit 2
+        set ddns-server FortiGuardDDNS
+        set ddns-domain "{{hostname_var}}-{{intWan2Name_var}}.fortiddns.com"
+        set use-public-ip enable
+        set monitor-interface "{{intWan2Name_var}}"
+    next
+end
+
+# FortiGuard settings should use unicast until proven otherwise
+config system fortiguard
+    set fortiguard-anycast disable
+    set update-server-location usa
+    set sdns-server-ip "208.91.112.220" "173.243.140.53" "210.7.96.53" 
+end
+
+# add session helpder for DNS-over-TCP
+config system session-helper
+    edit 99
+        set name dns-tcp
+        set protocol 6
+        set port 53
+    next
+end
+
+# Enabled dedicated management CPU
+config system npu
+    set dedicated-management-cpu enable
+end
+
+# Enabled dedicated management CPU
+config ips global
+    set database extended
+    set traffic-submit enable
+    set ips-reserve-cpu enable
+    set exclude-signatures ot
+end
+
+# To do: enable SNMPv3
+config system snmp sysinfo
+     set status enable
+end
+
+# Log to FAZ
+config log fortianalyzer setting
+     set status enable
+     set enc-algorithm high
+     set upload-option realtime
+     set server faz.victorweis.com
+     set serial "FZVMELTM25000377"
+end
+
+# set up your interfaces
+config system interface
+    edit {{intPo1Name_var}}
+        set vdom {{vdom_var}}
+        set fortilink {{intPo1FortiLink_var}}
+        set ip {{intPo1IP_var}}/{{branchSubnetSize_var}}
+        set allowaccess ping fabric
+        set type aggregate
+        set member {{po1member1_var}} {{po1member2_var}}
+        set alias {{intPo1Alias_var}}
+        set device-identification enable
+        set lldp-reception enable
+        set lldp-transmission enable
+        set snmp-index 19
+        set fortilink-split-interface enable
+        set auto-auth-extension-device enable
+        # set switch-controller-nac {{intPo1Name_var}}
+        # set switch-controller-dynamic {{intPo1Name_var}}
+        # set switch-controller-iot-scanning enable
+        set swc-first-create 255
+        set lacp-mode static
+    next
+    edit lo1
+      set vdom {{vdom_var}}
+      set type loopback
+      set allowaccess ping
+      set ip 192.168.199.1/32
+      set alias ntp_loopback
+    next
+    edit lo2
+      set vdom {{vdom_var}}
+      set type loopback
+      set allowaccess ping
+      set ip 192.168.199.2/32
+      set alias dns_loopback
+    next
+    edit dmz
+      set vdom {{vdom_var}}
+      set ip 10.10.10.1/24
+      set allowaccess https ssh ping
+      set type physical
+      set alias "oobm"
+      set device-identification enable
+      set role lan
+    next
+    edit internal4
+      set alias ha1
+    next
+    edit internal5
+      set alias ha2
+    next
+end
+
+# Configure NTP Client & Server
+config system ntp
+     set ntpsync enable
+     set type custom
+     set server-mode enable
+     set interface lo1 po1
+     config ntpserver
+          edit 1
+               set server {{ntp_var}}
+          next
+     end
+end
+
+config system dns-server
+    edit lo2
+        set mode recursive
+        set doh enable
+        set doh3 enable
+        set doq enable
+    next
+end
