@@ -1,0 +1,108 @@
+{# define a list of vlans #}
+{%
+set vlans= [
+{
+'name':'po1.0002',
+'id':'2',
+'prefix':'192.168.202',
+'alias':'inf_vlan',
+},
+{
+'name':'po1.0003',
+'id':'3',
+'prefix':'192.168.203',
+'alias':'users_vlan',
+},
+{
+'name':'po1.0004',
+'id':'4',
+'prefix':'192.168.204',
+'alias':'voip_vlan',
+},
+{
+'name':'po1.0005',
+'id':'5',
+'prefix':'192.168.205',
+'alias':'iot_vlan',
+},
+{
+'name':'po1.0006',
+'id':'6',
+'prefix':'192.168.206',
+'alias':'ot_vlan',
+},
+{
+'name':'po1.0007',
+'id':'7',
+'prefix':'192.168.207',
+'alias':'cam_vlan',
+},
+{
+'name':'po1.0008',
+'id':'8',
+'prefix':'192.168.208',
+'alias':'dmz_vlan',
+},
+{
+'name':'po1.0009',
+'id':'9',
+'prefix':'192.168.209',
+'alias':'guest_vlan',
+},
+]
+%}
+
+# create the vlan sub-interfaces
+config system interface
+    {% for vlan in vlans %}
+    edit "{{vlan.name}}"
+        set vdom {{vdom_var}}
+        set interface "{{intPo1Name_var}}"
+        set vlanid {{vlan.id}}
+        set ip {{vlan.prefix}}.{{ipGateway_var}}/{{branchSubnetSize_var}}
+        set alias "{{vlan.alias}}"
+        set allowaccess ping
+        set type vlan
+    next
+    {% endfor %}
+    edit po1.0002
+        set allowaccess ping https ssh snmp fabric
+    next
+    edit po1.0003
+        set allowaccess ping https ssh fabric
+    next
+end
+
+# create the dhcp servers for each vlan
+config system dhcp server
+    {% for vlan in vlans %}
+    edit {{vlan.id}}
+        set dns-service specify
+        set dns-server1 192.168.199.2
+        set dns-server2 1.1.1.1
+        set dns-server3 8.8.8.8
+        set ntp-service specify
+        set ntp-server1 192.168.199.1
+        set domain {{localDomainZone_var}}
+        set default-gateway {{vlan.prefix}}.{{ipGateway_var}}
+        set netmask {{branchSubnetSize_var}}
+        set interface {{vlan.name}}
+        config ip-range
+            edit 1
+                set start-ip {{vlan.prefix}}.{{dhcpPoolStart_var}}
+                set end-ip {{vlan.prefix}}.{{dhcpPoolEnd_var}}
+            next
+        end
+    next
+    {% endfor %}
+end
+
+# put all the vlans inside the lan_zone
+config system zone
+    edit "{{zoneNameLAN_var}}"
+        set intrazone deny
+        {% for vlan in vlans %}
+        append interface "{{vlan.name}}"
+        {% endfor %}
+    next
+end
