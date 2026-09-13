@@ -1,0 +1,110 @@
+# everything necessary to create the fortilink objects and settings for the adom database
+
+{# define a list of vlans #}
+{%
+set vlans= [
+{
+'name':'po1.0002',
+'id':'2',
+'prefix':'192.168.202',
+'alias':'inf_vlan',
+},
+{
+'name':'po1.0003',
+'id':'3',
+'prefix':'192.168.203',
+'alias':'users_vlan',
+},
+{
+'name':'po1.0004',
+'id':'4',
+'prefix':'192.168.204',
+'alias':'voip_vlan',
+},
+{
+'name':'po1.0005',
+'id':'5',
+'prefix':'192.168.205',
+'alias':'iot_vlan',
+},
+{
+'name':'po1.0006',
+'id':'6',
+'prefix':'192.168.206',
+'alias':'ot_vlan',
+},
+{
+'name':'po1.0007',
+'id':'7',
+'prefix':'192.168.207',
+'alias':'cam_vlan',
+},
+{
+'name':'po1.0008',
+'id':'8',
+'prefix':'192.168.208',
+'alias':'dmz_vlan',
+},
+{
+'name':'po1.0009',
+'id':'9',
+'prefix':'192.168.209',
+'alias':'guest_vlan',
+},
+]
+%}
+
+config switch-controller fortilink-settings
+    edit "po1"
+      config nac-ports
+          set onboarding-vlan "onboarding"
+          set lan-segment enabled
+          set nac-lan-interface "nac_segment"
+          set nac-segment-vlans "voice" "video"
+      end
+   next
+end
+
+config fsp vlan
+{% for vlan in vlans %}
+    edit "{{vlan.name}}"
+        set vlanid {{vlan.id}}
+        set _dhcp-status enable
+        config interface
+            set ip {{vlan.prefix}}.1 255.255.255.0
+            set allowaccess ping
+            set description {{vlan.alias}}
+            set alias {{vlan.alias}}
+            set device-identification enable
+            set role lan
+            set ip-managed-by-fortiipam disable
+        end
+        config dhcp-server
+            set dns-server1 192.168.199.2
+            set dns-server2 1.1.1.1
+            set dns-server3 8.8.8.8
+            set domain "home.arpa"
+            set default-gateway {{vlan.prefix}}.1
+            set netmask 255.255.255.0
+            set ntp-server1 192.168.199.1
+            set timezone-option default
+            config ip-range
+                edit 1
+                    set start-ip {{vlan.prefix}}.11
+                    set end-ip {{vlan.prefix}}.250
+                next
+            end
+        end
+    next
+    edit po1.0002
+        config interface
+            set allowaccess ping ssh https snmp fabric
+        end
+    next
+    edit po1.0003
+        config interface
+            set allowaccess ping ssh https fabric
+        end
+    next
+{% endfor %}
+end
