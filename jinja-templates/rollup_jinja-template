@@ -1,0 +1,3 @@
+{% include ['base_jinja-template'] ignore missing %}
+{% include ['vlans_jinja-template'] ignore missing %}
+{% include ['fap-settings_jinja-template'] ignore missing %}
